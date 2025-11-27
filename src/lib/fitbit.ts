@@ -10,17 +10,23 @@ export interface FitbitActivity {
 }
 
 export async function getRecentActivities(accessToken: string): Promise<FitbitActivity[]> {
-    const res = await fetch('https://api.fitbit.com/1/user/-/activities/list.json?beforeDate=' + new Date().toISOString().split('T')[0] + '&sort=desc&limit=20&offset=0', {
+    const url = 'https://api.fitbit.com/1/user/-/activities/list.json?beforeDate=' + new Date().toISOString().split('T')[0] + '&sort=desc&limit=20&offset=0';
+    console.log("Fetching activities from:", url);
+
+    const res = await fetch(url, {
         headers: {
             Authorization: `Bearer ${accessToken}`,
         },
     });
 
     if (!res.ok) {
-        throw new Error(`Failed to fetch activities: ${res.statusText}`);
+        const text = await res.text();
+        console.error(`Fitbit API Error: ${res.status} ${res.statusText}`, text);
+        throw new Error(`Failed to fetch activities: ${res.statusText} - ${text}`);
     }
 
     const data = await res.json();
+    console.log("Fitbit API Response Data:", JSON.stringify(data, null, 2));
     return data.activities || [];
 }
 

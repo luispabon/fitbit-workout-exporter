@@ -1,19 +1,23 @@
 import { getServerSession } from "next-auth/next"
-import { GET } from "./api/auth/[...nextauth]/route"
+import { authOptions } from "./api/auth/[...nextauth]/route"
 import { getRecentActivities, FitbitActivity } from "@/lib/fitbit"
 import WorkoutList from "@/components/WorkoutList"
 import Link from "next/link"
 
 export default async function Home() {
-  const session = await getServerSession(GET) as any;
+  const session = await getServerSession(authOptions) as any;
   let activities: FitbitActivity[] = [];
 
   if (session?.accessToken) {
+    console.log("Session has access token. Fetching activities...");
     try {
       activities = await getRecentActivities(session.accessToken);
+      console.log(`Fetched ${activities.length} activities.`);
     } catch (e) {
-      console.error("Failed to fetch activities", e);
+      console.error("Failed to fetch activities:", e);
     }
+  } else {
+    console.log("Session missing access token:", session);
   }
 
   return (

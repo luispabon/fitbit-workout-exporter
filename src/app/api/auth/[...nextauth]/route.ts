@@ -32,24 +32,30 @@ const FitbitProvider: OAuthConfig<any> = {
     clientSecret: process.env.FITBIT_CLIENT_SECRET,
 };
 
-const handler = NextAuth({
+export const authOptions = {
     providers: [
         FitbitProvider,
     ],
     callbacks: {
-        async jwt({ token, account }) {
+        async jwt({ token, account }: { token: any, account: any }) {
             if (account) {
+                console.log("JWT Callback - Account received:", JSON.stringify(account, null, 2));
                 token.accessToken = account.access_token;
                 token.refreshToken = account.refresh_token;
                 token.expiresAt = account.expires_at;
+            } else {
+                console.log("JWT Callback - No account (subsequent call)");
             }
             return token;
         },
-        async session({ session, token }) {
+        async session({ session, token }: { session: any, token: any }) {
+            console.log("Session Callback - Token:", JSON.stringify(token, null, 2));
             session.accessToken = token.accessToken;
             return session;
         },
     },
-});
+};
+
+const handler = NextAuth(authOptions);
 
 export { handler as GET, handler as POST };
