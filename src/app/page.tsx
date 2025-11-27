@@ -3,6 +3,7 @@ import { authOptions } from "./api/auth/[...nextauth]/route"
 import { getRecentActivities, FitbitActivity } from "@/lib/fitbit"
 import WorkoutList from "@/components/WorkoutList"
 import Link from "next/link"
+import LoginButton from "@/components/LoginButton"
 
 export default async function Home() {
   const session = await getServerSession(authOptions) as any;
@@ -32,12 +33,7 @@ export default async function Home() {
       {!session ? (
         <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-lg text-center">
           <p className="mb-6 text-gray-700 dark:text-gray-300">Please sign in with your Fitbit account to continue.</p>
-          <Link
-            href="/api/auth/signin"
-            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-full transition transform hover:scale-105"
-          >
-            Sign in with Fitbit
-          </Link>
+          <LoginButton />
         </div>
       ) : (
         <div className="w-full">
