@@ -7,19 +7,6 @@ import LoginButton from "@/components/LoginButton"
 
 export default async function Home() {
   const session = await getServerSession(authOptions) as any;
-  let activities: FitbitActivity[] = [];
-
-  if (session?.accessToken) {
-    console.log("Session has access token. Fetching activities...");
-    try {
-      activities = await getRecentActivities(session.accessToken);
-      console.log(`Fetched ${activities.length} activities.`);
-    } catch (e) {
-      console.error("Failed to fetch activities:", e);
-    }
-  } else {
-    console.log("Session missing access token:", session);
-  }
 
   return (
     <main className="min-h-screen bg-gray-100 dark:bg-gray-900 flex flex-col items-center justify-center p-4">
@@ -41,7 +28,7 @@ export default async function Home() {
             <p className="text-gray-700 dark:text-gray-300">Welcome, {session.user?.name}</p>
             <Link href="/api/auth/signout" className="text-sm text-red-500 hover:underline">Sign out</Link>
           </div>
-          <WorkoutList initialActivities={activities} />
+          <WorkoutList />
         </div>
       )}
     </main>

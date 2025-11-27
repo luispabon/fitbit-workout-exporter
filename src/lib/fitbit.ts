@@ -10,24 +10,46 @@ export interface FitbitActivity {
 }
 
 export async function getRecentActivities(accessToken: string): Promise<FitbitActivity[]> {
-    const url = 'https://api.fitbit.com/1/user/-/activities/list.json?beforeDate=' + new Date().toISOString().split('T')[0] + '&sort=desc&limit=20&offset=0';
-    console.log("Fetching activities from:", url);
+    const allActivities: FitbitActivity[] = [];
+    const limit = 100; // Max per request
+    let offset = 0;
+    let hasMore = true;
 
-    const res = await fetch(url, {
-        headers: {
-            Authorization: `Bearer ${accessToken}`,
-        },
-    });
+    console.log("Fetching all activities from Fitbit API...");
 
-    if (!res.ok) {
-        const text = await res.text();
-        console.error(`Fitbit API Error: ${res.status} ${res.statusText}`, text);
-        throw new Error(`Failed to fetch activities: ${res.statusText} - ${text}`);
+    while (hasMore) {
+        const url = `https://api.fitbit.com/1/user/-/activities/list.json?beforeDate=${new Date().toISOString().split('T')[0]}&sort=desc&limit=${limit}&offset=${offset}`;
+        console.log(`Fetching activities: offset=${offset}, limit=${limit}`);
+
+        const res = await fetch(url, {
+            headers: {
+                Authorization: `Bearer ${accessToken}`,
+            },
+        });
+
+        if (!res.ok) {
+            const text = await res.text();
+            console.error(`Fitbit API Error: ${res.status} ${res.statusText}`, text);
+            throw new Error(`Failed to fetch activities: ${res.statusText} - ${text}`);
+        }
+
+        const data = await res.json();
+        const activities = data.activities || [];
+
+        console.log(`Fetched ${activities.length} activities at offset ${offset}`);
+
+        allActivities.push(...activities);
+
+        // Check if there are more activities to fetch
+        if (activities.length < limit) {
+            hasMore = false;
+        } else {
+            offset += limit;
+        }
     }
 
-    const data = await res.json();
-    console.log("Fitbit API Response Data:", JSON.stringify(data, null, 2));
-    return data.activities || [];
+    console.log(`Total activities fetched: ${allActivities.length}`);
+    return allActivities;
 }
 
 export async function getTCXUrl(logId: number, accessToken: string): Promise<string> {
