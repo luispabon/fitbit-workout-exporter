@@ -2,6 +2,8 @@
 
 A simple, local web application that allows you to export your Fitbit activities as **TCX files**. This is useful for migrating your data to other platforms like Strava, Garmin Connect, or TrainingPeaks.
 
+Works with all activity types, not just GPS tracked ones (the only ones Fitbit sends to Strava).
+
 ## Features
 
 -   **Secure Authentication**: Log in with your Fitbit account using OAuth 2.0.

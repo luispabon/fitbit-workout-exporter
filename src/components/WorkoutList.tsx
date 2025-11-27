@@ -4,11 +4,14 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { FitbitActivity } from '@/lib/fitbit';
 
+const ITEMS_PER_PAGE = 10;
+
 export default function WorkoutList({ initialActivities }: { initialActivities?: FitbitActivity[] }) {
     const { data: session } = useSession();
     const [activities, setActivities] = useState<FitbitActivity[]>(initialActivities || []);
     const [loading, setLoading] = useState(!initialActivities);
     const [error, setError] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
 
     useEffect(() => {
         if (initialActivities) return;
@@ -37,12 +40,30 @@ export default function WorkoutList({ initialActivities }: { initialActivities?:
     if (loading) return <div className="text-center p-4">Loading workouts...</div>;
     if (error) return <div className="text-red-500 p-4">{error}</div>;
 
+    // Pagination logic
+    const totalPages = Math.ceil(activities.length / ITEMS_PER_PAGE);
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    const currentActivities = activities.slice(startIndex, endIndex);
+
+    const goToNextPage = () => {
+        if (currentPage < totalPages) {
+            setCurrentPage(currentPage + 1);
+        }
+    };
+
+    const goToPreviousPage = () => {
+        if (currentPage > 1) {
+            setCurrentPage(currentPage - 1);
+        }
+    };
+
     return (
         <div className="w-full max-w-4xl mx-auto p-4">
             <h2 className="text-2xl font-bold mb-4 text-gray-800 dark:text-white">Recent Workouts</h2>
             <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
                 <ul className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {activities.map((activity) => (
+                    {currentActivities.map((activity) => (
                         <li key={activity.logId} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition flex justify-between items-center">
                             <div>
                                 <p className="font-semibold text-lg text-gray-900 dark:text-white">{activity.activityName}</p>
@@ -63,6 +84,29 @@ export default function WorkoutList({ initialActivities }: { initialActivities?:
                     <div className="p-4 text-center text-gray-500">No recent activities found.</div>
                 )}
             </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+                <div className="mt-4 flex justify-between items-center">
+                    <button
+                        onClick={goToPreviousPage}
+                        disabled={currentPage === 1}
+                        className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed transition"
+                    >
+                        Previous
+                    </button>
+                    <span className="text-gray-700 dark:text-gray-300">
+                        Page {currentPage} of {totalPages}
+                    </span>
+                    <button
+                        onClick={goToNextPage}
+                        disabled={currentPage === totalPages}
+                        className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed transition"
+                    >
+                        Next
+                    </button>
+                </div>
+            )}
         </div>
     );
 }
