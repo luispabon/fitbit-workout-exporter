@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FitbitActivity } from '@/lib/fitbit';
@@ -29,11 +29,25 @@ export default function WorkoutList({ initialActivities }: { initialActivities?:
     const [backgroundFetching, setBackgroundFetching] = useState(false);
     const backgroundFetchRef = useRef(false);
 
+    // Extract unique activity types from loaded activities
+    const availableActivityTypes = useMemo(() => {
+        const types = new Set<string>();
+        activities.forEach(activity => {
+            if (activity && activity.activityName) {
+                types.add(activity.activityName);
+            }
+        });
+        return Array.from(types).sort();
+    }, [activities]);
+
     // Date filter state
     const [filterType, setFilterType] = useState<'all' | 'relative' | 'absolute'>('all');
     const [relativeDays, setRelativeDays] = useState<7 | 15 | 30>(7);
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
+
+    // Activity type filter state
+    const [selectedActivityType, setSelectedActivityType] = useState<string>('all');
 
     // Initialize page from URL
     useEffect(() => {
@@ -213,31 +227,45 @@ export default function WorkoutList({ initialActivities }: { initialActivities?:
     const goToNextPage = () => goToPage(currentPage + 1);
     const goToPreviousPage = () => goToPage(currentPage - 1);
 
-    // Apply date filters
+    // Apply date and activity type filters
     const getFilteredActivities = () => {
-        if (filterType === 'all') {
-            return activities;
+        let filtered = activities;
+
+        // Apply date filter
+        if (filterType !== 'all') {
+            const now = new Date();
+            let filterStartDate: Date;
+            let filterEndDate: Date = now;
+
+            if (filterType === 'relative') {
+                filterStartDate = new Date(now);
+                filterStartDate.setDate(filterStartDate.getDate() - relativeDays);
+            } else {
+                // absolute
+                if (startDate || endDate) {
+                    filterStartDate = startDate ? new Date(startDate) : new Date(0);
+                    filterEndDate = endDate ? new Date(endDate) : now;
+                } else {
+                    filterStartDate = new Date(0);
+                }
+            }
+
+            filtered = filtered.filter(activity => {
+                if (!activity) return false;
+                const activityDate = new Date(activity.startTime);
+                return activityDate >= filterStartDate && activityDate <= filterEndDate;
+            });
         }
 
-        const now = new Date();
-        let filterStartDate: Date;
-        let filterEndDate: Date = now;
-
-        if (filterType === 'relative') {
-            filterStartDate = new Date(now);
-            filterStartDate.setDate(filterStartDate.getDate() - relativeDays);
-        } else {
-            // absolute
-            if (!startDate && !endDate) return activities;
-            filterStartDate = startDate ? new Date(startDate) : new Date(0);
-            filterEndDate = endDate ? new Date(endDate) : now;
+        // Apply activity type filter
+        if (selectedActivityType !== 'all') {
+            filtered = filtered.filter(activity => {
+                if (!activity) return false;
+                return activity.activityName === selectedActivityType;
+            });
         }
 
-        return activities.filter(activity => {
-            if (!activity) return false;
-            const activityDate = new Date(activity.startTime);
-            return activityDate >= filterStartDate && activityDate <= filterEndDate;
-        });
+        return filtered;
     };
 
     const filteredActivities = getFilteredActivities();
@@ -254,6 +282,14 @@ export default function WorkoutList({ initialActivities }: { initialActivities?:
         const params = new URLSearchParams(searchParams.toString());
         params.set('page', '1');
         router.push(`?${params.toString()}`, { scroll: false });
+    };
+
+    const clearAllFilters = () => {
+        setFilterType('all');
+        setStartDate('');
+        setEndDate('');
+        setSelectedActivityType('all');
+        handleFilterChange();
     };
 
     // Generate page numbers to display
@@ -377,12 +413,31 @@ export default function WorkoutList({ initialActivities }: { initialActivities?:
                 )}
             </div>
 
-            {/* Date Filter */}
+            {/* Filters */}
             <div className="mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
                 <div className="flex flex-wrap gap-4 items-end">
                     <div className="flex-1 min-w-[200px]">
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            Filter by Date
+                            Activity Type
+                        </label>
+                        <select
+                            value={selectedActivityType}
+                            onChange={(e) => {
+                                setSelectedActivityType(e.target.value);
+                                handleFilterChange();
+                            }}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500"
+                        >
+                            <option value="all">All Types</option>
+                            {availableActivityTypes.map(type => (
+                                <option key={type} value={type}>{type}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div className="flex-1 min-w-[200px]">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Date Range
                         </label>
                         <select
                             value={filterType}
@@ -451,22 +506,17 @@ export default function WorkoutList({ initialActivities }: { initialActivities?:
                         </>
                     )}
 
-                    {filterType !== 'all' && (
+                    {(filterType !== 'all' || selectedActivityType !== 'all') && (
                         <button
-                            onClick={() => {
-                                setFilterType('all');
-                                setStartDate('');
-                                setEndDate('');
-                                handleFilterChange();
-                            }}
+                            onClick={clearAllFilters}
                             className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 underline"
                         >
-                            Clear Filter
+                            Clear Filters
                         </button>
                     )}
                 </div>
 
-                {filterType !== 'all' && (
+                {(filterType !== 'all' || selectedActivityType !== 'all') && (
                     <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
                         Showing {filteredActivities.filter(a => a !== undefined).length} of {activities.filter(a => a !== undefined).length} activities
                     </div>

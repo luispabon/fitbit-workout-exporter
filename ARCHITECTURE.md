@@ -86,6 +86,8 @@ User → Sign In → Fitbit OAuth → Access Token → Session
   - Background fetching for total count
   - URL synchronization for browser navigation
   - Numbered pagination with ellipsis
+  - Date filtering (relative and absolute ranges)
+  - Activity type filtering (e.g., Walk, Run, Elliptical)
 
 ##### State Management
 ```typescript
@@ -95,6 +97,8 @@ currentPage: number              // Synced with URL ?page=X
 totalCount: number | null        // Known after background fetch
 backgroundFetching: boolean      // Background discovery in progress
 hasMore: boolean                 // More pages available
+filterType: 'all' | 'relative' | 'absolute'  // Date filter type
+selectedActivityType: string     // Activity type filter (e.g., 'Walk', 'Run')
 ```
 
 ##### Caching Strategy
@@ -260,10 +264,28 @@ src/
 - ✅ No hardcoded credentials in codebase
 - ✅ OAuth 2.0 with proper scopes
 
+### Filtering
+
+#### Date Filters
+- **All Activities**: No date filtering
+- **Relative**: Last 7, 15, or 30 days
+- **Absolute**: Custom date range with start/end dates
+
+#### Activity Type Filter
+- Dynamically populated from loaded activities
+- Filters by `activityName` field (e.g., "Walk", "Run", "Elliptical")
+- Extracted using `useMemo` for performance
+- Sorted alphabetically
+
+#### Filter Behavior
+- Filters work together with AND logic
+- Pagination resets to page 1 when filters change
+- Shows count of filtered vs total activities
+- "Clear Filters" button resets all filters
+
 ### Future Enhancements (Not Implemented)
 
 - Bulk download (zip all TCX files)
-- Activity filtering by type/date
 - Export to other formats (GPX, FIT)
 - Server-side database for faster loads
 - Progressive Web App (offline support)
