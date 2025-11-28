@@ -29,6 +29,12 @@ export default function WorkoutList({ initialActivities }: { initialActivities?:
     const [backgroundFetching, setBackgroundFetching] = useState(false);
     const backgroundFetchRef = useRef(false);
 
+    // Date filter state
+    const [filterType, setFilterType] = useState<'all' | 'relative' | 'absolute'>('all');
+    const [relativeDays, setRelativeDays] = useState<7 | 15 | 30>(7);
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
+
     // Initialize page from URL
     useEffect(() => {
         const pageParam = searchParams.get('page');
@@ -207,14 +213,48 @@ export default function WorkoutList({ initialActivities }: { initialActivities?:
     const goToNextPage = () => goToPage(currentPage + 1);
     const goToPreviousPage = () => goToPage(currentPage - 1);
 
+    // Apply date filters
+    const getFilteredActivities = () => {
+        if (filterType === 'all') {
+            return activities;
+        }
+
+        const now = new Date();
+        let filterStartDate: Date;
+        let filterEndDate: Date = now;
+
+        if (filterType === 'relative') {
+            filterStartDate = new Date(now);
+            filterStartDate.setDate(filterStartDate.getDate() - relativeDays);
+        } else {
+            // absolute
+            if (!startDate && !endDate) return activities;
+            filterStartDate = startDate ? new Date(startDate) : new Date(0);
+            filterEndDate = endDate ? new Date(endDate) : now;
+        }
+
+        return activities.filter(activity => {
+            if (!activity) return false;
+            const activityDate = new Date(activity.startTime);
+            return activityDate >= filterStartDate && activityDate <= filterEndDate;
+        });
+    };
+
+    const filteredActivities = getFilteredActivities();
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
     const endIndex = startIndex + ITEMS_PER_PAGE;
-    const currentActivities = activities.slice(startIndex, endIndex).filter(a => a !== undefined);
+    const currentActivities = filteredActivities.slice(startIndex, endIndex).filter(a => a !== undefined);
 
-    // Calculate total pages
-    const totalPages = totalCount !== null
-        ? Math.ceil(totalCount / ITEMS_PER_PAGE)
-        : Math.ceil((hasMore ? totalFetched + ITEMS_PER_PAGE : totalFetched) / ITEMS_PER_PAGE);
+    // Calculate total pages based on filtered results
+    const totalPages = Math.ceil(filteredActivities.length / ITEMS_PER_PAGE);
+
+    const handleFilterChange = () => {
+        // Reset to page 1 when filter changes
+        setCurrentPage(1);
+        const params = new URLSearchParams(searchParams.toString());
+        params.set('page', '1');
+        router.push(`?${params.toString()}`, { scroll: false });
+    };
 
     // Generate page numbers to display
     const getPageNumbers = () => {
@@ -294,8 +334,8 @@ export default function WorkoutList({ initialActivities }: { initialActivities?:
                                 key={pageNum}
                                 onClick={() => goToPage(pageNum)}
                                 className={`min-w-[40px] px-3 py-2 border rounded-lg transition ${isActive
-                                        ? 'border-gray-900 dark:border-gray-100 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 font-semibold'
-                                        : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                                    ? 'border-gray-900 dark:border-gray-100 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 font-semibold'
+                                    : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
                                     }`}
                             >
                                 {pageNum}
@@ -334,6 +374,102 @@ export default function WorkoutList({ initialActivities }: { initialActivities?:
                     <span className="text-sm text-gray-500 dark:text-gray-400 animate-pulse">
                         Discovering activities...
                     </span>
+                )}
+            </div>
+
+            {/* Date Filter */}
+            <div className="mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
+                <div className="flex flex-wrap gap-4 items-end">
+                    <div className="flex-1 min-w-[200px]">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Filter by Date
+                        </label>
+                        <select
+                            value={filterType}
+                            onChange={(e) => {
+                                setFilterType(e.target.value as 'all' | 'relative' | 'absolute');
+                                handleFilterChange();
+                            }}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500"
+                        >
+                            <option value="all">All Activities</option>
+                            <option value="relative">Last X Days</option>
+                            <option value="absolute">Date Range</option>
+                        </select>
+                    </div>
+
+                    {filterType === 'relative' && (
+                        <div className="flex-1 min-w-[200px]">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Time Period
+                            </label>
+                            <select
+                                value={relativeDays}
+                                onChange={(e) => {
+                                    setRelativeDays(parseInt(e.target.value) as 7 | 15 | 30);
+                                    handleFilterChange();
+                                }}
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500"
+                            >
+                                <option value="7">Last 7 Days</option>
+                                <option value="15">Last 15 Days</option>
+                                <option value="30">Last 30 Days</option>
+                            </select>
+                        </div>
+                    )}
+
+                    {filterType === 'absolute' && (
+                        <>
+                            <div className="flex-1 min-w-[200px]">
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Start Date
+                                </label>
+                                <input
+                                    type="date"
+                                    value={startDate}
+                                    onChange={(e) => {
+                                        setStartDate(e.target.value);
+                                        handleFilterChange();
+                                    }}
+                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500"
+                                />
+                            </div>
+                            <div className="flex-1 min-w-[200px]">
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    End Date
+                                </label>
+                                <input
+                                    type="date"
+                                    value={endDate}
+                                    onChange={(e) => {
+                                        setEndDate(e.target.value);
+                                        handleFilterChange();
+                                    }}
+                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500"
+                                />
+                            </div>
+                        </>
+                    )}
+
+                    {filterType !== 'all' && (
+                        <button
+                            onClick={() => {
+                                setFilterType('all');
+                                setStartDate('');
+                                setEndDate('');
+                                handleFilterChange();
+                            }}
+                            className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 underline"
+                        >
+                            Clear Filter
+                        </button>
+                    )}
+                </div>
+
+                {filterType !== 'all' && (
+                    <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                        Showing {filteredActivities.filter(a => a !== undefined).length} of {activities.filter(a => a !== undefined).length} activities
+                    </div>
                 )}
             </div>
 
